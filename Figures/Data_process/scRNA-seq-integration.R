@@ -7,15 +7,15 @@ plan("multiprocess", workers = 5)
 options(future.globals.maxSize = 50000 * 1024^2)
 
 ##normal
-normal <- readRDS("/volumes/USR1/siyuan/DCIS_siyuan/scRNA-seq/final_round/normal/Normal_all.rds")
+normal <- readRDS("~/normal/Normal_all.rds")
 DefaultAssay(normal) <- "RNA"
 
 ##DCIS
-dcis1 <- readRDS("/volumes/USR1/siyuan/DCIS_siyuan/scRNA-seq/final_round/DCIS/ECIS_all.rds")
+dcis1 <- readRDS("~/ECIS_all.rds")
 DefaultAssay(dcis1) <- "RNA"
 
 ##IDC
-idc1 <- readRDS("/volumes/USR1/siyuan/DCIS_siyuan/scRNA-seq/final_round/IDC/idc_er_ng_seurat.rds")
+idc1 <- readRDS("~/idc_er_ng_seurat.rds")
 DefaultAssay(idc1) <- "RNA"
 
 hbca_dcis_ibc <- merge(normal_sub, c(dcis1, idc1))
