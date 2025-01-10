@@ -1,3 +1,7 @@
+## Note: the analysis below is based on the integrated object ##
+
+all_cell <- readRDS("~/all_cell.rds")
+
 ###--------Figure 1b--------###
 DimPlot(all_cell, group.by = "celltype", cols = celltype_col, label = T, raster = F)
 
