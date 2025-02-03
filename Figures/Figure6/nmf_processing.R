@@ -3,7 +3,6 @@ library(dplyr)
 library(magrittr)
 library(RcppML)
 library(future) ##run parallelization
-
 plan("multisession", workers = 5)
 options(future.globals.maxSize = 50000 * 1024^2)
 
@@ -11,18 +10,14 @@ options(future.globals.maxSize = 50000 * 1024^2)
 
 args <- commandArgs(T)
 input_file <- as.character(args[1])
-#out_dir <- as.character(args[2])
-setwd("/volumes/USR1/siyuan/DCIS_siyuan/scRNA-seq/final_round/tumor/NMF_analysis_upd/")
 
-##example
-#nohup Rscript Run_NMF.R tumor_obj_for_nmf.txt > tumor_obj_for_nmf.log 2>&1 &
+setwd("./NMF_analysis/")
 
 # function ----------------------------------------------------------------
 nmf_programs <- function(cpm, is.log=F, rank, gene_use=NULL, seed=30) {
   if(is.log==F) cpm_normalized <- log2((cpm/10) + 1) else cpm_normalized <- cpm
   if (is.null(gene_use)) {
-    cpm_normalized <- cpm_normalized[apply(cpm_normalized, 1, function(x) length(which(x > 0)) > nco
-l(cpm_normalized)*0.02),]
+    cpm_normalized <- cpm_normalized[apply(cpm_normalized, 1, function(x) length(which(x > 0)) > ncol(cpm_normalized)*0.02),]
   } else {
     cpm_normalized <- cpm_normalized[rownames(cpm_normalized) %in% gene_use, ]
   }
@@ -48,7 +43,7 @@ tumor_obj_list <- list()
 num <- 1
 for(sample in input_file_list$V1){
   sample_name <- sub(".rds", "", sample)
-  tumor_rds_raw <- readRDS(paste0("/volumes/USR1/siyuan/DCIS_siyuan/scRNA-seq/final_round/tumor/refine_tumor_anno_upd/tumor_obj/", sample))
+  tumor_rds_raw <- readRDS(paste0("/./tumor_obj/", sample))
   tumor_rds_raw$sample_id <- sample_name
   
   #if(dim(tumor_rds_raw)[2] < 15) {next}
@@ -83,7 +78,4 @@ for(sample in input_file_list$V1){
 saveRDS(tumor_count, "tumor_count_normalized_list_all95.rds")
 saveRDS(tumor_w_list, "tumor_w_list_all95.rds")
 saveRDS(tumor_h_list, "tumor_h_list_all95.rds")
-
-
-
 
