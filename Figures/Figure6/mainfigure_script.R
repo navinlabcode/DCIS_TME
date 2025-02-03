@@ -33,3 +33,49 @@ ggplot()+geom_point(data = tumor_dif_pred %>% filter(!CellType == "tumor_synch_y
   geom_point(data = tumor_dif_pred %>% filter(CellType == "tumor_synch_yes"), aes(x = DC1, y = DC2, colour = CellType), size = 0.4)+ggpubr::theme_pubr()+
   theme(axis.title = element_text(size = 16), axis.text=ggplot2::element_text(size=12), plot.margin = ggplot2::unit(c(0.5,1,0.5,1), "cm"), legend.title = element_text(size = 14),legend.text = element_text(size = 12))+
   guides(colour = guide_legend(override.aes = list(size=3))) + scale_colour_manual(values = c('#FC7EADFF', "#41B6E6FF", '#31D64DFF', "#F9B90AFF",  "#F24C3DFF", '#9063CDFF', '#2CCCD3FF')) 
+
+###--------Figure 6e--------###
+nmf_programs_genes_tumor <- readRDS('tumor_w_list_all95.rds')
+tissue_type_upd_0709$sample_upd <- sub('_pc1|_24hTis|_cryo|_24htis', '', tissue_type_upd_0709$sample)
+nmf_programs_genes_tumor <- nmf_programs_genes_tumor[intersect(tissue_type_upd_0709$sample_upd, names(nmf_programs_genes_tumor))] 
+
+tumor_nmf_programs_top50_ori <- lapply(nmf_programs_genes_tumor, function(x) apply(x, 2, function(y) names(sort(y, decreasing = T))[1:50]))
+tumor_nmf_filter <- robust_nmf_programs(tumor_nmf_programs_top50_ori, intra_min=35, intra_max=10, inter_filter=T, inter_min=10)
+tumor_nmf_programs_top50 <- lapply(tumor_nmf_programs_top50_ori, function(x) x[, is.element(colnames(x), tumor_nmf_filter), drop=F])
+tumor_nmf_programs_top50 <- do.call(cbind, tumor_nmf_programs_top50)
+
+# calculate similarity between NMF programs
+nmf_programs_sig_tumor_rshp <- tumor_nmf_programs_top50 %>% melt %>% set_colnames(c('X1', 'X2', 'gene')) %>% dplyr::select(-X1) %>% mutate(exst=1) %>% 
+  tidyr::pivot_wider(id_cols=X2, names_from=gene, values_from=exst, values_fill=0)
+nmf_programs_sig_tumor_rshp_mat <- as.matrix(nmf_programs_sig_tumor_rshp[, -1])
+tumor_nmf_intersect <- nmf_programs_sig_tumor_rshp_mat %*% t(nmf_programs_sig_tumor_rshp_mat) %>% set_colnames(nmf_programs_sig_tumor_rshp$X2) %>% set_rownames(nmf_programs_sig_tumor_rshp$X2)
+tumor_nmf_intersect_rmrg <- remerge(as.dist((50-tumor_nmf_intersect)/50), intra_thr=0.8, inter_thr=.72, min_size=4, method='ward.D2', init_k=23, max_iter=20) #intra_thr smaller, between cluster are less similar
+tumor_nmf_intersect_rmrg_df <- as.matrix(tumor_nmf_intersect_rmrg$dist_out)
+tumor_nmf_intersect_rmrg_group <- data.frame(grp=tumor_nmf_intersect_rmrg$grp_out) %>% set_rownames(names(tumor_nmf_intersect_rmrg$grp_out))
+
+rec_break <- cumsum(table(tumor_nmf_intersect_rmrg_group$grp)[unique(tumor_nmf_intersect_rmrg_group$grp)])
+                                   
+tumor_nmf_intersect_rmrg_df_reord_melt <- reshape2::melt(tumor_nmf_intersect_rmrg_df)
+ggplot(data = tumor_nmf_intersect_rmrg_df_reord_melt, aes(x=Var1, y=Var2, fill=1-value)) + 
+    geom_tile() +
+    scale_fill_gradientn(limits=c(0, 1), colors = c("white", rev(paletteer::paletteer_c("grDevices::Reds 3", n = 100))), name="Similarity score") +
+    scale_x_discrete(name="\nPrograms", breaks=unique(tumor_nmf_intersect_rmrg_df_reord_melt$Var1)[seq(50, length(unique(tumor_nmf_intersect_rmrg_df_reord_melt$Var1)), by=50)], labels= seq(50, length(unique(tumor_nmf_intersect_rmrg_df_reord_melt$Var1)), by=50)) + 
+    scale_y_discrete(name="\nPrograms", breaks=unique(tumor_nmf_intersect_rmrg_df_reord_melt$Var2)[seq(50, length(unique(tumor_nmf_intersect_rmrg_df_reord_melt$Var2)), by=50)], labels= seq(50, length(unique(tumor_nmf_intersect_rmrg_df_reord_melt$Var2)), by=50)) +
+    geom_rect(aes(xmin = 0.5, xmax = rec_break[1] + 0.5, ymin = 0.5, ymax = rec_break[1] + 0.5), fill = NA, color = "black") +
+    geom_rect(aes(xmin = rec_break[1] + 0.5, xmax = rec_break[2] + 0.5, ymin = rec_break[1] + 0.5, ymax = rec_break[2] + 0.5), fill = NA, color = "black") +
+    geom_rect(aes(xmin = rec_break[2] + 0.5, xmax = rec_break[3] + 0.5, ymin = rec_break[2] + 0.5, ymax = rec_break[3] + 0.5), fill = NA, color = "black") +
+    geom_rect(aes(xmin = rec_break[3] + 0.5, xmax = rec_break[4] + 0.5, ymin = rec_break[3] + 0.5, ymax = rec_break[4] + 0.5), fill = NA, color = "black") +
+    geom_rect(aes(xmin = rec_break[4] + 0.5, xmax = rec_break[5] + 0.5, ymin = rec_break[4] + 0.5, ymax = rec_break[5] + 0.5), fill = NA, color = "black") +
+    geom_rect(aes(xmin = rec_break[5] + 0.5, xmax = rec_break[6] + 0.5, ymin = rec_break[5] + 0.5, ymax = rec_break[6] + 0.5), fill = NA, color = "black") +
+    geom_rect(aes(xmin = rec_break[6] + 0.5, xmax = rec_break[7] + 0.5, ymin = rec_break[6] + 0.5, ymax = rec_break[7] + 0.5), fill = NA, color = "black") +
+    geom_rect(aes(xmin = rec_break[7] + 0.5, xmax = rec_break[8] + 0.5, ymin = rec_break[7] + 0.5, ymax = rec_break[8] + 0.5), fill = NA, color = "black") +
+    geom_rect(aes(xmin = rec_break[8] + 0.5, xmax = rec_break[9] + 0.5, ymin = rec_break[8] + 0.5, ymax = rec_break[9] + 0.5), fill = NA, color = "black") +
+    geom_rect(aes(xmin = rec_break[9] + 0.5, xmax = rec_break[10] + 0.5, ymin = rec_break[9] + 0.5, ymax = rec_break[10] + 0.5), fill = NA, color = "black") +
+    geom_rect(aes(xmin = rec_break[10] + 0.5, xmax = rec_break[11] + 0.5, ymin = rec_break[10] + 0.5, ymax = rec_break[11] + 0.5), fill = NA, color = "black") +
+    geom_rect(aes(xmin = rec_break[11] + 0.5, xmax = rec_break[12] + 0.5, ymin = rec_break[11] + 0.5, ymax = rec_break[12] + 0.5), fill = NA, color = "black") +
+    geom_rect(aes(xmin = rec_break[12] + 0.5, xmax = rec_break[13] + 0.5, ymin = rec_break[12] + 0.5, ymax = rec_break[13] + 0.5), fill = NA, color = "black") +
+    geom_rect(aes(xmin = rec_break[13] + 0.5, xmax = rec_break[14] + 0.5, ymin = rec_break[13] + 0.5, ymax = rec_break[14] + 0.5), fill = NA, color = "black") 
+
+
+
+
