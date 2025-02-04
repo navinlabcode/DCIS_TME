@@ -6,12 +6,12 @@ DotPlot(object = er_tumor_obj, features = c('TMC5', hbca_epi_final_use_sub_marke
   scale_color_gradientn(colours = viridis::viridis(100)) & coord_flip()
 
 ###--------Figure 6c--------###
-normal_epi_hvg_24 <- read.table('/volumes/USR1/siyuan/DCIS_siyuan/scRNA-seq/final_round/tumor/cell_origin/diffusion_map/normal_epi_hvg_24.txt', header = T)
-hbca_epi_count_dm_24 <- readRDS("/volumes/USR1/siyuan/DCIS_siyuan/scRNA-seq/final_round/tumor/cell_origin/diffusion_map/normal_epi_sub_count_dm.rds")
-hbca_epi_anno_24 <- read.table("/volumes/USR1/siyuan/DCIS_siyuan/scRNA-seq/final_round/tumor/cell_origin/diffusion_map/normal_epi_sub_anno.txt", header = T)
+normal_epi_hvg_24 <- read.table('./diffusion_map/normal_epi_hvg_24.txt', header = T)
+hbca_epi_count_dm_24 <- readRDS("./normal_epi_sub_count_dm.rds")
+hbca_epi_anno_24 <- read.table("./diffusion_map/normal_epi_sub_anno.txt", header = T)
 hbca_epi_dm_tmp_24 <- data.frame(DC1 = eigenvectors(hbca_epi_count_dm_24)[,1], DC2 = eigenvectors(hbca_epi_count_dm_24)[,2], CellType = hbca_epi_anno_24$x)
 
-er_tumor_obj_diet <- readRDS('/volumes/USR1/siyuan/DCIS_siyuan/scRNA-seq/final_round/tumor/ER_pos_tumor_diet_0924.rds')
+er_tumor_obj_diet <- er_tumor_obj
 DefaultAssay(er_tumor_obj_diet) <- 'RNA'
 er_tumor_obj_diet <- NormalizeData(er_tumor_obj_diet) 
 
@@ -75,6 +75,30 @@ ggplot(data = tumor_nmf_intersect_rmrg_df_reord_melt, aes(x=Var1, y=Var2, fill=1
     geom_rect(aes(xmin = rec_break[11] + 0.5, xmax = rec_break[12] + 0.5, ymin = rec_break[11] + 0.5, ymax = rec_break[12] + 0.5), fill = NA, color = "black") +
     geom_rect(aes(xmin = rec_break[12] + 0.5, xmax = rec_break[13] + 0.5, ymin = rec_break[12] + 0.5, ymax = rec_break[13] + 0.5), fill = NA, color = "black") +
     geom_rect(aes(xmin = rec_break[13] + 0.5, xmax = rec_break[14] + 0.5, ymin = rec_break[13] + 0.5, ymax = rec_break[14] + 0.5), fill = NA, color = "black") 
+
+###--------Figure 6g--------###
+normal_epi_hr <- readRDS(./normal_epi_hr.rds)
+hbca_tumor_obj_com <- merge(er_tumor_obj_diet, normal_epi_hr)
+hbca_tumor_obj_com@meta.data[, names(module_gene_top50)] <- NULL
+hbca_tumor_obj_com <- AddModuleScore(hbca_tumor_obj_com, features = module_gene_top50)
+colnames(hbca_tumor_obj_com@meta.data)[grepl('Cluster', colnames(hbca_tumor_obj_com@meta.data))] <- names(module_gene_top50)
+
+tumor_obj_dat <- data.frame(sample = hbca_tumor_obj_com$orig.ident, hbca_tumor_obj_com@meta.data[, names(module_gene_top50)]) #tumor_obj$type
+tumor_obj_dat_type <- merge(tumor_obj_dat, dcis_clinical_0924[, c(1,5)], by = "sample")
+
+###binarize to proportion
+tumor_obj_dat_type_trunc <- data.frame(sample = tumor_obj_dat_type$sample, type = tumor_obj_dat_type$tissue_upd_0924, ifelse(tumor_obj_dat_type[, names(module_gene_top50)] > 0.25, 1, 0)) #test more cutoff
+tumor_obj_dat_type_trunc_sum_upd <- tumor_obj_dat_type_trunc %>%
+    group_by(sample, type) %>%
+    summarize(
+      across(1:14, ~sum(. == 1) / n(), .names = "{.col}")
+    )
+tumor_obj_dat_type_trunc_sum_ref_upd <- tumor_obj_dat_type_trunc_sum_upd %>% pivot_longer(!c(sample, type), names_to = "Module", values_to = "Proportion")
+tumor_obj_dat_type_trunc_sum_ref_upd$Module <- factor(tumor_obj_dat_type_trunc_sum_ref_upd$Module, levels = names(module_gene_top50))
+tumor_obj_dat_type_trunc_sum_ref_upd$type_upd <- tumor_obj_dat_type_trunc_sum_ref_upd$type
+tumor_obj_dat_type_trunc_sum_ref_upd$type_upd <- factor(tumor_obj_dat_type_trunc_sum_ref_upd$type_upd, levels = c("Normal" , "DCIS_yes", "synch_yes", "IDC_yes"))
+facet(ggboxplot(tumor_obj_dat_type_trunc_sum_ref_upd, x = "type_upd", y = "Proportion", color = "type_upd", palette = tissue_type_col, add = "jitter")+
+          stat_compare_means(aes(group = type_upd), label = "p.format" , method = 'kruskal.test'), facet.by = "Module", nrow = 3, scales = 'free_y')+theme(axis.text.x=element_text(angle=50,hjust=1,vjust=1))
 
 
 
