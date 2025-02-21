@@ -6,11 +6,10 @@ tumor_id <- data.frame(id = rownames(tumor_obj_rm_meta_data), sample = tumor_obj
 tumor_id$unique_id <- paste(tumor_id$sample, sub('-.*', '', tumor_id$id), sep = '_')
 
 all_cell_count_24$celltype1 <- ifelse(all_cell_count_24$unique_id %in% tumor_id$unique_id, 'tumor', all_cell_count_24$celltype)
-write.csv(all_cell_count_24, './filtered/all_cell_merged_anno_upd.csv', quote = F)
 
 all_cell_count_24 <- read.csv('./filtered/all_cell_merged_anno_upd.csv', row.names = 1)
+
 all_cellstate_count_24 <- all_cell_count_24[, c(2,1,6,4)]
-write.csv(all_cell_count_24, './filtered/all_cellstate_merged_anno.csv', quote = F)
 
 #only extract tme cells and normal lumsec
 all_tme_cell_count_24 <- all_cell_count_24 %>% filter(!celltype1 %in% c('lumhr', 'tumor', 'lumsec', 'Lymphatic'))
@@ -28,9 +27,6 @@ all_tme_cellstate_24_count2_refor1_prop <- all_cell_count_24_celltypestate %>%
   mutate(prop = ifelse(celltype_n > 20, cellstate_n / celltype_n, 0)) #mutate(prop = ifelse(sum_value > 20, count / sum_value, 0))
 
 all_tme_cellstate_24_count2_refor1_prop_bac <- all_tme_cellstate_24_count2_refor1_prop
-all_tme_cellstate_24_count2_refor1_prop_bac$celltype1 <- NULL
-all_tme_cellstate_24_count2_refor1_prop_bac$celltype_n <- NULL
-all_tme_cellstate_24_count2_refor1_prop_bac$cellstate_n <- NULL
 all_tme_cellstate_24_count2_refor1_prop1 <- all_tme_cellstate_24_count2_refor1_prop_bac %>% pivot_wider(names_from = cellstate, values_from = prop)
 all_tme_cellstate_24_count2_cli_prop_sel1 <- merge(all_tme_cellstate_24_count2_refor1_prop1, tissue_type_upd[, c(1:3)], by = "sample")
 
@@ -136,4 +132,79 @@ ggraph(all_tme_nmf_24_prop_cor_test_network1, layout = l_24)+
   theme_graph()+
   theme(legend.position = "right")+
   geom_node_text(aes(label = name), repel = TRUE, point.padding = unit(0.2, "lines"), size = 3)
+
+
+# fig7b-tissue distribution --------------------------------------------------------------
+jaccard_similarity <- function(x, y) {
+  intersection <- sum(x & y)  # Count of common 1s
+  union <- sum(x | y)         # Count of 1s in either x or y
+  return(intersection / union)
+}
+#construct a cluster list info
+community_obj_24_info <- as.character(membership(community_obj_24))
+names(community_obj_24_info) <- names(membership(community_obj_24))
+community_obj_24_info_list <- list()
+for (num in unique(community_obj_24_info)) {
+  community_obj_24_info_list[[num]] <- names(community_obj_24_info[community_obj_24_info == num])
+}
+
+#construct a cluster list info (test)
+community_obj_24_info_test <- as.character(membership(community_obj_24_test))
+names(community_obj_24_info_test) <- names(membership(community_obj_24_test))
+community_obj_24_info_list_test <- list()
+for (num in unique(community_obj_24_info_test)) {
+  community_obj_24_info_list_test[[num]] <- names(community_obj_24_info_test[community_obj_24_info_test == num])
+}
+
+names(cell_cooccur_col_test) <- c(1, 10, 11,2:9)
+names(cell_cooccur_col) <- c(1, 10, 11, 2:9)
+
+#for colors
+cellstate_ecotype_col1 <- cellstate_ecotype_col
+names(cellstate_ecotype_col1) <- c(1:8)
+
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+all_tme_nmf_prop_0924$tissue_upd_0924_upd <- all_tme_nmf_prop_0924$tissue_upd_0924
+all_tme_nmf_prop_0924$tissue_upd_0924 <- NULL
+
+mat_use_scaled_24_binarize <- apply(all_tme_nmf_prop_0924[,2:76], 2, function(x) ifelse(x > quantile(x, prob = .55), 1, 0)) #0.5
+
+tissue_binarize <- mat_use_scaled_24_binarize[which(all_tme_nmf_prop_0924$tissue_upd_0924_upd == "Normal"),] #"DCIS_yes"  "synch_yes" "IDC_yes"   "Normal" 
+#t_i <- 1
+
+{
+  n <- ncol(tissue_binarize)
+  tissue_jacard_fea_run_24 <- matrix(0, nrow = n, ncol = n)
+  for (i in 1:n) {
+    for (j in i:n) {
+      similarity <- jaccard_similarity(tissue_binarize[, i], tissue_binarize[, j])
+      tissue_jacard_fea_run_24[i, j] <- similarity
+      tissue_jacard_fea_run_24[j, i] <- similarity  # Symmetric matrix
+    }
+  }
+  colnames(tissue_jacard_fea_run_24) <- rownames(tissue_jacard_fea_run_24) <- colnames(tissue_binarize)
+  
+  tissue_jacard_fea_run_24 <- tissue_jacard_fea_run_24[-7, -7] #remove hypoxia
+  diag(tissue_jacard_fea_run_24) <- NA
+  #construct the graph
+  {
+    tissue_jacard_fea_run_24[is.na(tissue_jacard_fea_run_24)] <- 0
+    tissue_tme_nmf_24_prop_scale_cb_sel_jac_network <- graph_from_adjacency_matrix(tissue_jacard_fea_run_24, weighted=T, mode="undirected", diag=F)
+    tissue_tme_nmf_24_prop_scale_cb_sel_jac_network <- delete_edges(tissue_tme_nmf_24_prop_scale_cb_sel_jac_network, E(tissue_tme_nmf_24_prop_scale_cb_sel_jac_network)[weight < 0.5]) #0.5
+    #V(tissue_tme_nmf_24_prop_scale_cb_sel_jac_network)$clu <- as.character(membership(community_obj_24))
+  }
+  
+  V(tissue_tme_nmf_24_prop_scale_cb_sel_jac_network)$clu <- as.character(membership(community_obj_24_test))
+  jam_igraph(tissue_tme_nmf_24_prop_scale_cb_sel_jac_network,
+             layout=l_24_test_opt, edge.color = adjustcolor('grey', alpha.f = .8), edge.width=E(tissue_tme_nmf_24_prop_scale_cb_sel_jac_network)$weight, edge_factor = 1, #edge.width=seq(0.1,5),
+             edge_bundling="nodegroups",
+             nodegroups=community_obj_24_info_list_test, vertex.size = 4, vertex.label=NA, vertex.color=cell_cooccur_col[V(tissue_tme_nmf_24_prop_scale_cb_sel_jac_network)$clu])
+  #'#7B8C95FF'
+}
+
+legend("topright", legend = c("low", "high"), 
+       lwd = c(0.5, 1),  # Line widths to represent the legend
+       col = "grey",     # Color of the lines in the legend
+       title = "Co-presence")
+
 
