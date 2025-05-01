@@ -11,21 +11,16 @@ DefaultAssay(t_inte) <- "integrated"
 
 ##first predict CD4 and CD8 cells (include CD4 and CD8 genes in PCs)
 t_inte <- AddMetaData(t_inte, metadata = t_cell_anno, col.name = "celltype")
-
 t_inte_anno <- subset(t_inte, celltype != "NA")
-DefaultAssay(t_inte_anno) <- "RNA" ##this doesn't matter.
-#t_label <- droplevels(t_inte_anno$celltype)  ##drop unused levels from a factor
-##without removing CD4 and CD8 genes
+
+DefaultAssay(t_inte_anno) <- "RNA" 
+
 t_rf <- randomForest::randomForest(x = as.matrix(Embeddings(t_inte_anno, 'pca')[, 1:30]), y = factor(t_inte_anno$celltype))
-print(t_rf)
 t_rf_errate <- t_rf$err.rate[, -1] %>% melt %>% set_colnames(c('Trees', 'CellType', 'ErrorRate'))
-ggplot(t_rf_errate, aes(x=Trees, y=ErrorRate, color=CellType)) + geom_line() + scale_color_manual(values=c('#00A9E0FF', '#FFA400FF')) + theme_classic()
 t_inte_anno$celltype_rf <- t_rf$predicted
-DimPlot(t_inte_anno, group.by = "celltype_rf", label = T, cols = c('#00A9E0FF', '#FFA400FF'))
 
 t_inte_anno$celltype_rf_dif <- ifelse(t_inte_anno$celltype == t_inte_anno$celltype_rf, "yes", "no")
 t_inte_anno_conf <- subset(t_inte_anno, celltype_rf_dif %in% c('yes'))
-
 t_inte_anno_conf_id_label <- data.frame(anno = t_inte_anno_conf$celltype)
 
 ##predict unannotated cells
@@ -44,7 +39,7 @@ rownames(t_inte_unanno_conf_id_label) <- t_rf_pred_rf_raw_max_prob_fil$Cell
 t_inte_all_conf_id_label <- rbind(t_inte_unanno_conf_id_label, t_inte_anno_conf_id_label)
 t_inte <- AddMetaData(t_inte, metadata = t_inte_all_conf_id_label, col.name = "celltype_anno_conf")
 t_inte_fil <- subset(t_inte, celltype_anno_conf %in% c('CD4T', 'CD8T'))
-DimPlot(t_inte_fil, group.by = "celltype_anno_conf", label = T, cols = c('#00A9E0FF', '#FFA400FF'))
+
 t_inte_fil <- ScaleData(t_inte_fil, verbose = FALSE)
 t_inte_fil <- RunPCA(t_inte_fil, npcs = 30, verbose = FALSE)
 t_inte_fil <- RunUMAP(t_inte_fil, reduction = "pca", dims = 1:25)
