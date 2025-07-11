@@ -1,8 +1,23 @@
+library(Seurat)
+library(dplyr)
 
-fibro_all_diet <- readRDS("")
 
 # fig2a fibro UMAP-------------------------------------------------------------------
-DimPlot(fibro_all_diet, raster = F, cols = fibro_col, label = F)
+fibro_all_unfiltered <- readRDS("fibro.seurat.inte.proj.all.upd.rds")
+DefaultAssay(fibro_all_unfiltered) <- "integrated"
+
+fibro_all <- subset(fibro_all_unfiltered, nFeature_RNA > 500)
+DefaultAssay(fibro_all) <- "integrated"
+fibro_all <- ScaleData(fibro_all, verbose = FALSE)
+fibro_all <- RunPCA(fibro_all, npcs = 30, verbose = FALSE)
+fibro_all <- RunUMAP(fibro_all, reduction = "pca", dims = 1:20)
+fibro_all <- FindNeighbors(fibro_all, dims = 1:20)
+fibro_all <- FindClusters(fibro_all, resolution = 0.2)
+                                                                      
+DefaultAssay(fibro_all) <- "RNA"
+fibro_all_marker <- FindAllMarkers(fibro_all, logfc.threshold = 0.3, only.pos = T, slot = "data") #for cluster number iden
+
+DimPlot(fibro_all)
 
 
 # fig2c fibro markers-------------------------------------------------------------------
