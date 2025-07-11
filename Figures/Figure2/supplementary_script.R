@@ -1,3 +1,9 @@
+
+fibro_all_filtered_marker_top5 <- fibro_all_filtered_marker %>% filter(p_val_adj < 0.05) %>% filter(pct.2 < 0.5) %>% group_by(cluster) %>% filter(!grepl("^MT-",gene) & !grepl("^RPL",gene) & !grepl("^RPS",gene)) %>% top_n(n=5, wt=avg_log2FC)
+DotPlot(object = fibro_all_filtered, features = unique(fibro_all_filtered_marker_top5$gene))+ RotatedAxis() + scale_color_gradientn(colours = rev(paletteer_c("ggthemes::Red-Blue Diverging", 100)))
+
+
+
 # Supplementary Fig2c fibroblast signature analysis ---------------------------------------------------------------
 fibro_signature <- fibro_all_marker %>% group_by(cluster) %>% filter(avg_log2FC > 0.5 & pct.2 < 0.7 & p_val_adj < 0.05) %>% top_n(n = 50, wt = avg_log2FC)
 fibro_df <- fibro_signature[,6:7]
