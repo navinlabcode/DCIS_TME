@@ -19,6 +19,9 @@ ggplot(cells.pt.final_sum3_sel %>% filter(!cells_State %in% cell_stat_plot), aes
 
 
 ###--------Supplementary figures 4c,d--------###
-
+dcis_300_xenium_srt_9cons_basal_rm <- subset(dcis_300_xenium_srt_9cons_basal, cells = WhichCells(dcis_300_xenium_srt_ecis34_basal, idents = c(0,2)), invert = T)
+sample_check <- unique(dcis_300_xenium_srt_9cons_basal$sample)[10]
+DimPlot(subset(dcis_300_xenium_srt_9cons_basal_rm, sample == sample_check), raster = F, reduction = 'SP', group.by='cellstate_ml_merge', raster.dpi = c(2048, 2048), pt.size = 0.15) + 
+  scale_color_manual(values=c('grey', paletteer::paletteer_d("yarrr::google")[c(1)], 'grey', paletteer::paletteer_d("yarrr::google")[c(2)]))
 
 
