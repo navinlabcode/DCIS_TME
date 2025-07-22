@@ -2,8 +2,13 @@
 er_tumor_obj <- readRDS("./er_tumor_obj.rds")
 
 ###--------Figure 6b--------###
+DimPlot(er_tumor_obj, group.by = "patient")
+
+
+###--------Figure 6b--------###
 DotPlot(object = er_tumor_obj, features = c('TMC5', hbca_epi_final_use_sub_marker_top9$gene[!hbca_epi_final_use_sub_marker_top9$gene == 'TCIM']), group.by = "orig.ident", dot.scale = 3, dot.min = 0.01)+ RotatedAxis() + 
   scale_color_gradientn(colours = viridis::viridis(100)) & coord_flip()
+
 
 ###--------Figure 6c--------###
 normal_epi_hvg_24 <- read.table('./diffusion_map/normal_epi_hvg_24.txt', header = T)
@@ -33,6 +38,88 @@ ggplot()+geom_point(data = tumor_dif_pred %>% filter(!CellType == "tumor_synch_y
   geom_point(data = tumor_dif_pred %>% filter(CellType == "tumor_synch_yes"), aes(x = DC1, y = DC2, colour = CellType), size = 0.4)+ggpubr::theme_pubr()+
   theme(axis.title = element_text(size = 16), axis.text=ggplot2::element_text(size=12), plot.margin = ggplot2::unit(c(0.5,1,0.5,1), "cm"), legend.title = element_text(size = 14),legend.text = element_text(size = 12))+
   guides(colour = guide_legend(override.aes = list(size=3))) + scale_colour_manual(values = c('#FC7EADFF', "#41B6E6FF", '#31D64DFF', "#F9B90AFF",  "#F24C3DFF", '#9063CDFF', '#2CCCD3FF')) 
+
+
+###--------Figure 6d--------###
+normal_tumor_type1 <- dcis_clinical_0924[c(1,5)]
+colnames(normal_tumor_type1) <- c('sample', 'tumor_path')
+hbca_tumor_obj_com$tissue_type <- NULL
+{
+  hbca_tumor_obj_com$tissue_type <- ifelse(hbca_tumor_obj_com$orig.ident %in% (normal_tumor_type1 %>% filter(tumor_path == "Normal") %>% pull(sample)), "Normal", "na" )
+  hbca_tumor_obj_com$tissue_type <- ifelse(hbca_tumor_obj_com$orig.ident %in% (normal_tumor_type1 %>% filter(tumor_path %in% c("DCIS_no", "DCIS_yes")) %>% pull(sample)), "DCIS", hbca_tumor_obj_com$tissue_type)
+  hbca_tumor_obj_com$tissue_type <- ifelse(hbca_tumor_obj_com$orig.ident %in% (normal_tumor_type1 %>% filter(tumor_path %in% c("synch_yes", "synch_no")) %>% pull(sample)), "synch", hbca_tumor_obj_com$tissue_type)
+  hbca_tumor_obj_com$tissue_type <- ifelse(hbca_tumor_obj_com$orig.ident %in% (normal_tumor_type1 %>% filter(tumor_path %in% c("IDC_no", "IDC_yes")) %>% pull(sample)), "IDC", hbca_tumor_obj_com$tissue_type)
+}
+hbca_tumor_obj_com$tissue_type <- factor(hbca_tumor_obj_com$tissue_type, levels = c("Normal", "DCIS", "synch", "IDC"))
+
+hbca_tumor_obj_com_diet <- hbca_tumor_obj_com
+
+
+##DE genes
+Idents(hbca_tumor_obj_com) <- hbca_tumor_obj_com$tissue_type
+normal_dcis_idc_upd_marker_0924 <- FindAllMarkers(hbca_tumor_obj_com, logfc.threshold = 0.25, only.pos = T, slot = "data") #for cluster number iden
+
+write.csv(normal_dcis_idc_upd_marker_0924, './tumor/normal_dcis_idc_upd_marker_0924.csv', quote = F)
+
+normal_dcis_idc_upd_marker_0924_top30 <- normal_dcis_idc_upd_marker_0924 %>% group_by(cluster) %>% top_n(n = 30, wt = avg_log2FC)
+
+#combine cosmic genes
+normal_dcis_idc_upd_marker_0924_top20 <- normal_dcis_idc_upd_marker_0924 %>% group_by(cluster) %>% filter(avg_log2FC > 0.25) %>% top_n(n = 20, wt = avg_log2FC) 
+
+normal_dcis_idc_upd_maker_cancergene <- normal_dcis_idc_upd_marker_0924 %>% group_by(cluster) %>% filter(avg_log2FC > 0.25) %>% filter(gene %in% cosmic_updated$Gene) %>% top_n(n = 20, wt = avg_log2FC) 
+normal_dcis_idc_upd_maker_cancergene_info <- merge(normal_dcis_idc_upd_maker_cancergene, cosmic_updated, by.x = 'gene', by.y = 'Gene')
+
+hbca_tumor_obj_com$tissue_type1 <- factor(hbca_tumor_obj_com$tissue_type, levels = c("IDC", "synch", "DCIS", "Normal"))
+
+DotPlot(hbca_tumor_obj_com, features = c('PGR', 'AR', 'SMAD3', 'SBDS', 'DICER1', 'CHD2', 'KLF6', 'CDH1', 'ERBB2', 'LASP1', 'GATA3', 'CD74', 'KLF4', 'ESR1'),  group.by = "tissue_type1", dot.min = 0.01)+ RotatedAxis() + scale_color_gradientn(colours = c(paletteer::paletteer_c("grDevices::Viridis", n = 100))) +
+  theme(axis.text.x=element_text(size=10))
+
+
+##Known genes
+cosmic_updated <- read.table('./cosmic_updated.txt', fill = TRUE, header = T)
+normal_dcis_idc_upd_maker_cancergene <- normal_dcis_idc_upd_marker %>% filter(avg_log2FC > 0.3) %>% filter(gene %in% cosmic_updated$Gene)
+normal_dcis_idc_upd_maker_cancergene <- normal_dcis_idc_upd_marker %>% group_by(cluster) %>% filter(avg_log2FC > 0.25) %>% filter(gene %in% cosmic_updated$Gene) %>% top_n(n = 8, wt = avg_log2FC) 
+genes_to_check <- normal_dcis_idc_upd_maker_cancergene %>% pull(gene) #c('GATA3', 'DNAJB1', 'CCND1')
+genes_to_check <- c(genes_to_check[c(1:5)], 'CDH1', genes_to_check[c(6:9)] , 'KLF4')
+
+breast_gene <- read.table('./breast_cancer_uniq_sorted.txt', header = F) 
+normal_dcis_idc_upd_maker_breastgene <- normal_dcis_idc_upd_marker %>% filter(avg_log2FC > 0.3) %>% filter(gene %in% breast_gene$V1)
+genes_to_check <- normal_dcis_idc_upd_maker_breastgene %>% pull(gene) #c('GATA3', 'DNAJB1', 'CCND1')
+
+##plot genes
+hbca_tumor_obj_com_diet$tissue_type <- factor(hbca_tumor_obj_com_diet$tissue_type, levels = c("IDC", "DCIS", "Normal"))
+
+normal_dcis_idc_upd_topmarker <- normal_dcis_idc_upd_marker %>% group_by(cluster) %>% top_n(n = 3, wt = avg_log2FC) 
+normal_dcis_idc_upd_topmarker_pct <- normal_dcis_idc_upd_marker %>% group_by(cluster) %>% filter(pct.1 > 0.3) %>% top_n(n = 3, wt = avg_log2FC) 
+DotPlot(hbca_tumor_obj_com_diet, features = normal_dcis_idc_upd_topmarker$gene,  group.by = "tissue_type", dot.min = 0.01)+ RotatedAxis() + scale_color_gradientn(colours = c(paletteer::paletteer_c("grDevices::Viridis", n = 100))) +
+  theme(axis.text.x=element_text(size=10))
+
+normal_dcis_idc_upd_maker_cosmic <- left_join(normal_dcis_idc_upd_marker, cosmic_updated, by = c("gene" = "Gene"))
+cancer_gene <- c('SMAD3', 'CDH1', 'SBDS', 'DICER1', 'CHD2', 'KLF6', 'COX6C', 'CD74', 'CCND1', 'GATA3', 'KLF4')
+
+genes_to_check <- c(cancer_gene, normal_dcis_idc_upd_topmarker$gene)
+genes_to_check <- c(cancer_gene, normal_dcis_idc_upd_topmarker_pct$gene)
+
+genes_to_check <- c('ESR1', 'PGR', 'AR', 'ERBB2', 'MKI67', 'SMAD3', 'CDH1', 'SBDS', 'DICER1', 'CHD2', 'KLF6', 'COX6C', 'CD74', 'CCND1', 'GATA3', 'KLF4') #previous version
+
+DotPlot(hbca_tumor_obj_com_diet, features = unique(genes_to_check),  group.by = "tissue_type")+ RotatedAxis() + scale_color_gradientn(colours = c(paletteer::paletteer_c("grDevices::Viridis", n = 100))) +
+  theme(axis.text.x=element_text(size=10))
+
+DotPlot(hbca_tumor_obj_com_diet, features = unique(c('ESR1', 'PGR', 'AR', 'ERBB2', 'ITGAV', 'SMAD3', 'SFPQ', 'MYH9', 'CDH1', 'GATA3', 'DNAJB1', 'CCND1', 'KLF4')),  group.by = "tissue_type")+ RotatedAxis() + scale_color_gradientn(colours = c(paletteer::paletteer_c("grDevices::Viridis", n = 100))) +
+  theme(axis.text.x=element_text(size=10))
+DotPlot(hbca_tumor_obj_com_diet, features = unique(c('ESR1', 'PGR', 'AR', 'ERBB2')),  group.by = "tissue_type", scale = F)+ RotatedAxis() + scale_color_gradientn(colours = c(paletteer::paletteer_c("grDevices::Viridis", n = 100))) +
+  theme(axis.text.x=element_text(size=10))
+VlnPlot(hbca_tumor_obj_com_diet, features = c('ESR1', 'PGR', 'AR', 'ERBB2'),  group.by = "tissue_type", pt.size = 0)+
+  theme(axis.text.x=element_text(size=10))
+VlnPlot(hbca_tumor_obj_com_diet, c('ESR1', 'PGR', 'AR', 'ERBB2'), pt.size = 0, cols = tissue_type_col, stack = T, flip = T, fill.by = 'ident') & NoLegend()
+
+VlnPlot(hbca_tumor_obj_com_diet, features = 'PALLD', pt.size = 0,  group.by = "tissue_type") +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  stat_compare_means(comparisons = list( c("Normal", "DCIS"), c("DCIS", "IDC"), c("Normal", "IDC"))) + ylim(-2, 10)
+
+write.csv(normal_dcis_idc_upd_marker, './tumor/normal_dcis_idc_upd_marker.csv', quote = F)
+
+
 
 ###--------Figure 6e--------###
 nmf_programs_genes_tumor <- readRDS('tumor_w_list_all95.rds')
@@ -76,6 +163,7 @@ ggplot(data = tumor_nmf_intersect_rmrg_df_reord_melt, aes(x=Var1, y=Var2, fill=1
     geom_rect(aes(xmin = rec_break[12] + 0.5, xmax = rec_break[13] + 0.5, ymin = rec_break[12] + 0.5, ymax = rec_break[13] + 0.5), fill = NA, color = "black") +
     geom_rect(aes(xmin = rec_break[13] + 0.5, xmax = rec_break[14] + 0.5, ymin = rec_break[13] + 0.5, ymax = rec_break[14] + 0.5), fill = NA, color = "black") 
 
+
 ###--------Figure 6g--------###
 normal_epi_hr <- readRDS(./normal_epi_hr.rds)
 hbca_tumor_obj_com <- merge(er_tumor_obj_diet, normal_epi_hr)
@@ -101,5 +189,20 @@ facet(ggboxplot(tumor_obj_dat_type_trunc_sum_ref_upd, x = "type_upd", y = "Propo
           stat_compare_means(aes(group = type_upd), label = "p.format" , method = 'kruskal.test'), facet.by = "Module", nrow = 3, scales = 'free_y')+theme(axis.text.x=element_text(angle=50,hjust=1,vjust=1))
 
 
+###--------Figure 6 spatial--------###
+#normal vs DCIS lumhr proportion comp
+dcis_lumhr_count <- data.frame(table(dcis_300_xenium_srt_12cons_lumhr$sample, dcis_300_xenium_srt_12cons_lumhr$cellstate_ml_com))
+dcis_lumhr_count$type <- 'DCIS'
+dcis_lumhr_count_prop <- dcis_lumhr_count %>% group_by(Var1) %>% mutate(Prop = Freq/sum(Freq))
+
+hbca_lumhr_count <- data.frame(table(hbca_300_xenium_srt_6cons_lumhr$sample, hbca_300_xenium_srt_6cons_lumhr$cellstate_ml_com))
+hbca_lumhr_count$type <- 'HBCA'
+hbca_lumhr_count_prop <- hbca_lumhr_count %>% group_by(Var1) %>% mutate(Prop = Freq/sum(Freq))
+
+hbca_dcis_lumhr_prop <- rbind(dcis_lumhr_count_prop, hbca_lumhr_count_prop)
+hbca_dcis_lumhr_prop$type <- factor(hbca_dcis_lumhr_prop$type, levels = c('HBCA', 'DCIS'))
+
+ggboxplot(hbca_dcis_lumhr_prop %>% filter(!Var2 %in% c('AMS_others', 'others', 'lumhr_others', 'Normal_like_lumhr')), x = "Var2", y = "Prop", color = "type", palette = tissue_type_col,#x = "supp", y = "len", fill = "#00AFBB", 
+          add = "jitter") + stat_compare_means(aes(group = type), label = "p.format", method = "wilcox.test") + rotate_x_text(angle = 45, hjust = 1, vjust = 1) + scale_x_discrete(limits = c('lumhr_cycling', 'lumhr_intef', 'lumhr_hla'))
 
 
