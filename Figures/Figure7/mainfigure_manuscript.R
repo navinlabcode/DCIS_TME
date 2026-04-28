@@ -5,19 +5,22 @@ all_cell_count_24 <- read.csv('./filtered/all_cell_merged_anno.csv')
 
 all_cell_count_24$unique_id <- paste(all_cell_count_24$sample, sub('-.*', '', all_cell_count_24$cell_id), sep = '_')
 
+# get tumor cell ID info
 tumor_id <- data.frame(id = rownames(tumor_obj_rm_meta_data), sample = tumor_obj_rm_meta_data$orig.ident)
 tumor_id$unique_id <- paste(tumor_id$sample, sub('-.*', '', tumor_id$id), sep = '_')
 
 all_cell_count_24$celltype1 <- ifelse(all_cell_count_24$unique_id %in% tumor_id$unique_id, 'tumor', all_cell_count_24$celltype)
 
-#all_cell_count_24 <- read.csv('./filtered/all_cell_merged_anno_upd.csv', row.names = 1)
+##all_cell_count_24 <- read.csv('./filtered/all_cell_merged_anno_upd.csv', row.names = 1)
 
-all_cellstate_count_24 <- all_cell_count_24[, c(2,1,6,4)]
+##all_cellstate_count_24 <- all_cell_count_24[, c(2,1,6,4)]
 
-#only extract tme cells and normal lumsec
+# only extract tme cells
 all_tme_cell_count_24 <- all_cell_count_24 %>% filter(!celltype1 %in% c('lumhr', 'tumor', 'lumsec', 'Lymphatic'))
+
 all_tme_cellstate_24_count1 <- all_tme_cell_count_24 %>% group_by(sample) %>% count(cellstate)
 colnames(all_tme_cellstate_24_count1)[3] <- 'cellstate_n'
+
 all_tme_celltype_24_count1 <- all_tme_cell_count_24 %>% group_by(sample) %>% count(celltype1)
 colnames(all_tme_celltype_24_count1)[3] <- 'celltype_n'
 
