@@ -1,10 +1,13 @@
+library(igraph)
+library(ggraph)
+
 # fig7a-cell state correlation-------------------------------------------------------------------
 
 all_cell_count_24 <- read.csv('./filtered/all_cell_merged_anno.csv')
 
 ## the input file (all_cell_count_24) should look like this: 
 ## sample, celltype, cellstate, unique_id
-##BCMHBCA83L_3h,lumsec,Lumsec_PTN,AAACGAAAGTGTAGTA-1_1_1_1
+## BCMHBCA83L_3h,lumsec,Lumsec_PTN,AAACGAAAGTGTAGTA-1_1_1_1
 
 all_cell_count_24$unique_id <- paste(all_cell_count_24$sample, sub('-.*', '', all_cell_count_24$cell_id), sep = '_')
 
@@ -29,7 +32,7 @@ colnames(all_tme_celltype_24_count1)[3] <- 'celltype_n'
 
 all_cell_count_24_celltypestate <- all_tme_cell_count_24 %>% dplyr::select(sample, celltype1, cellstate) %>% distinct()
 
-#keep celltype sum more than 20
+# keep celltype sum more than 20
 all_tme_cellstate_24_count2_refor1_prop <- all_cell_count_24_celltypestate %>%
   left_join(all_tme_celltype_24_count1, by = c("sample", "celltype1")) %>%
   left_join(all_tme_cellstate_24_count1, by = c("sample", "cellstate")) %>%
@@ -41,15 +44,20 @@ all_tme_cellstate_24_count2_cli_prop_sel1 <- merge(all_tme_cellstate_24_count2_r
 
 all_tme_cellstate_24_count2_cli_prop_sel1[is.na(all_tme_cellstate_24_count2_cli_prop_sel1)] <- 0
 
-#merge NMF and TME
+# merge NMF and TME
+
+## tumor_obj_dat_type_trunc_sum_upd should look like this:
+## sample         type      CC_G2M   CC_S Cell_growth_reg
+## BCMDCIS01T_pc1 DCIS_yes  0.0545 0.0510         0.00900
+
 tumor_obj_dat_type_trunc_sum_upd1 <- tumor_obj_dat_type_trunc_sum_upd
 colnames(tumor_obj_dat_type_trunc_sum_upd1)[c(3:16)] <- paste('NMF', colnames(tumor_obj_dat_type_trunc_sum_upd1)[c(3:16)], sep = '_')
 all_tme_nmf_prop_24 <- merge(tumor_obj_dat_type_trunc_sum_upd1, all_tme_cellstate_24_count2_cli_prop_sel1, by = "sample")
 
 write.csv(all_tme_nmf_prop_24[, c(-1,-78, -79)], 'cellstate_nmf.csv', quote = F)
 
-##generate the graph
-#p values associated with cell state correlation
+# generate the graph
+# p values associated with cell state correlation
 corr_fea_pval_24 <- matrix(NA, ncol = 75, nrow = 75)
 colnames(corr_fea_pval_24) <- rownames(corr_fea_pval_24) <- names(all_tme_nmf_prop_24[, 3:77])
 for (i in 1:ncol(all_tme_nmf_prop_24_cor)) {
@@ -94,7 +102,7 @@ num_runs <- 1000
 num_nodes <- vcount(all_tme_nmf_24_prop_cor_test_network_rm2)
 for (i in 1:num_runs) {
   cluster_obj <- igraph::cluster_louvain(all_tme_nmf_24_prop_cor_test_network_rm2, resolution = 2.1) #2.2; 2.1
-  cluster_memberships_24[[i]] <- membership(cluster_obj)
+  cluster_memberships_24[[i]] <- membership(cluster_obj)      
 }
 # Create a consensus matrix
 consensus_matrix_24 <- matrix(0, nrow = num_nodes, ncol = num_nodes)
