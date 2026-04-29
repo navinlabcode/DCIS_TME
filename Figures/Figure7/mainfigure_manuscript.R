@@ -54,7 +54,9 @@ tumor_obj_dat_type_trunc_sum_upd1 <- tumor_obj_dat_type_trunc_sum_upd
 colnames(tumor_obj_dat_type_trunc_sum_upd1)[c(3:16)] <- paste('NMF', colnames(tumor_obj_dat_type_trunc_sum_upd1)[c(3:16)], sep = '_')
 all_tme_nmf_prop_24 <- merge(tumor_obj_dat_type_trunc_sum_upd1, all_tme_cellstate_24_count2_cli_prop_sel1, by = "sample")
 
-write.csv(all_tme_nmf_prop_24[, c(-1,-78, -79)], 'cellstate_nmf.csv', quote = F)
+# write.csv(all_tme_nmf_prop_24[, c(-1,-78, -79)], 'cellstate_nmf.csv', quote = F)
+
+all_tme_nmf_prop_24_cor <- cor(all_tme_nmf_prop_24[, 3:77], method = "spearman")
 
 # generate the graph
 # p values associated with cell state correlation
@@ -85,42 +87,35 @@ all_tme_nmf_24_prop_cor_test_network_rm1 <- delete_edges(all_tme_nmf_24_prop_cor
 all_tme_nmf_24_prop_cor_test_network_rm2 <- delete_edges(all_tme_nmf_24_prop_cor_test_network_rm1, E(all_tme_nmf_24_prop_cor_test_network_rm1)[weight <= 0])
 all_tme_nmf_24_prop_cor_test_network_rm2 <- igraph::delete.vertices(all_tme_nmf_24_prop_cor_test_network_rm2, which(igraph::degree(all_tme_nmf_24_prop_cor_test_network_rm2)==0))
 
-##determine # of clusters (res = 2)
-num_clu_dat_res <- num_cluster(all_tme_nmf_24_prop_cor_test_network_rm2, res = seq(0.5, 3, by = 0.05), method = "mean")
-num_clu_dat_res <- num_cluster(all_tme_nmf_24_prop_cor_test_network_rm2, res = seq(0.5, 3, by = 0.05), method = "median")
-
-ggplot(num_clu_dat_res, aes(x = res)) +
-  geom_line(aes(y = n_clu), size = 1, color = "blue") +
-  geom_line(aes(y = n_mem), size = 1, color = "red") + theme_bw()
-
 {
-set.seed(13579)
-##consensus clustering using louvain algorithm
-cluster_memberships_24 <- list()
-# Run Louvain clustering multiple times
-num_runs <- 1000
-num_nodes <- vcount(all_tme_nmf_24_prop_cor_test_network_rm2)
-for (i in 1:num_runs) {
-  cluster_obj <- igraph::cluster_louvain(all_tme_nmf_24_prop_cor_test_network_rm2, resolution = 2.1) #2.2; 2.1
-  cluster_memberships_24[[i]] <- membership(cluster_obj)      
-}
-# Create a consensus matrix
-consensus_matrix_24 <- matrix(0, nrow = num_nodes, ncol = num_nodes)
-for (i in 1:num_runs) {
-  for (j in 1:num_nodes) {
-    for (k in 1:num_nodes) {
-      if (cluster_memberships_24[[i]][j] == cluster_memberships_24[[i]][k]) {
-        consensus_matrix_24[j, k] <- consensus_matrix_24[j, k] + 1
-      }
-    }
-  }
-}
-rownames(consensus_matrix_24) <- colnames(consensus_matrix_24) <- names(cluster_memberships_24[[1]])
+	set.seed(13579)
+	##consensus clustering using louvain algorithm
+	cluster_memberships_24 <- list()
+	# Run Louvain clustering multiple times
+	num_runs <- 1000
+	num_nodes <- vcount(all_tme_nmf_24_prop_cor_test_network_rm2)
+	for (i in 1:num_runs) {
+	  cluster_obj <- igraph::cluster_louvain(all_tme_nmf_24_prop_cor_test_network_rm2, resolution = 2.1) #you need to play around with resolution
+	  cluster_memberships_24[[i]] <- membership(cluster_obj)      
+	}
+	  
+	# Create a consensus matrix
+	consensus_matrix_24 <- matrix(0, nrow = num_nodes, ncol = num_nodes)
+	for (i in 1:num_runs) {
+	  for (j in 1:num_nodes) {
+	    for (k in 1:num_nodes) {
+	      if (cluster_memberships_24[[i]][j] == cluster_memberships_24[[i]][k]) {
+	        consensus_matrix_24[j, k] <- consensus_matrix_24[j, k] + 1
+	      }
+	    }
+	  }
+	}
+	rownames(consensus_matrix_24) <- colnames(consensus_matrix_24) <- names(cluster_memberships_24[[1]])
 
-# get final clustering results
-graph_24 <- graph.adjacency(consensus_matrix_24, mode = "undirected", weighted = T, diag = F)
-community_obj_24 <- igraph::cluster_louvain(graph_24, resolution = 2.1) #2.2
-unique(igraph::membership(community_obj_24)); table(igraph::membership(community_obj_24))
+	# get final clustering results
+	graph_24 <- graph.adjacency(consensus_matrix_24, mode = "undirected", weighted = T, diag = F)
+	community_obj_24 <- igraph::cluster_louvain(graph_24, resolution = 2.1) #2.2
+	unique(igraph::membership(community_obj_24)); table(igraph::membership(community_obj_24))
 }
 
 all_tme_nmf_24_prop_cor_test_network1 <- all_tme_nmf_24_prop_cor_test_network_rm2
