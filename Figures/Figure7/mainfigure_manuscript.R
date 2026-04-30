@@ -134,6 +134,7 @@ l_wt_24_test <- apply(get.edgelist(all_tme_nmf_24_prop_cor_test_network2), 1,
 
 cell_cooccur_col <- c('')
 
+## exploratory plot
 ggraph::ggraph(all_tme_nmf_24_prop_cor_test_network2, layout = l_24_test_opt)+
   geom_edge_link0(aes(edge_width = weight), edge_colour = "#999BA0FF")+ #Draw edges as straight lines between nodes
   geom_node_point(aes(colour = clu), size = 5)+
@@ -143,7 +144,7 @@ ggraph::ggraph(all_tme_nmf_24_prop_cor_test_network2, layout = l_24_test_opt)+
   theme(legend.position = "right")+
   geom_node_text(aes(label = name), repel = TRUE, point.padding = unit(0.2, "lines"), size = 1.5)
 
-## try bundle
+## try bundle (used in the paper)
 jam_igraph(all_tme_nmf_24_prop_cor_test_network2,
            layout=l_24_test, edge.color = adjustcolor('#999BA0FF', alpha.f = .5), edge.width=E(all_tme_nmf_24_prop_cor_test_network2)$weight, edge_factor = 2, #edge.width=seq(0.1,5),
            edge_bundling="nodegroups",
@@ -203,6 +204,7 @@ tissue_binarize <- mat_use_scaled_24_binarize[which(all_tme_nmf_prop_0924$tissue
   }
   
   V(tissue_tme_nmf_24_prop_scale_cb_sel_jac_network)$clu <- as.character(membership(community_obj_24_test))
+  ## try bundle (used in the paper)
   jam_igraph(tissue_tme_nmf_24_prop_scale_cb_sel_jac_network,
              layout=l_24_test_opt, edge.color = adjustcolor('grey', alpha.f = .8), edge.width=E(tissue_tme_nmf_24_prop_scale_cb_sel_jac_network)$weight, edge_factor = 1, #edge.width=seq(0.1,5),
              edge_bundling="nodegroups",
