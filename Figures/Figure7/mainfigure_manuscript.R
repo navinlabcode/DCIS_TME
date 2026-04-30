@@ -1,5 +1,6 @@
 library(igraph)
 library(ggraph)
+library(multienrichjam)
 
 # fig7a-cell state correlation-------------------------------------------------------------------
 
@@ -88,70 +89,67 @@ all_tme_nmf_24_prop_cor_test_network_rm2 <- delete_edges(all_tme_nmf_24_prop_cor
 all_tme_nmf_24_prop_cor_test_network_rm2 <- igraph::delete.vertices(all_tme_nmf_24_prop_cor_test_network_rm2, which(igraph::degree(all_tme_nmf_24_prop_cor_test_network_rm2)==0))
 
 {
-	set.seed(13579)
-	##consensus clustering using louvain algorithm
-	cluster_memberships_24 <- list()
-	# Run Louvain clustering multiple times
-	num_runs <- 1000
-	num_nodes <- vcount(all_tme_nmf_24_prop_cor_test_network_rm2)
-	for (i in 1:num_runs) {
-	  cluster_obj <- igraph::cluster_louvain(all_tme_nmf_24_prop_cor_test_network_rm2, resolution = 2.1) #you need to play around with resolution
-	  cluster_memberships_24[[i]] <- membership(cluster_obj)      
-	}
-	  
-	# Create a consensus matrix
-	consensus_matrix_24 <- matrix(0, nrow = num_nodes, ncol = num_nodes)
-	for (i in 1:num_runs) {
-	  for (j in 1:num_nodes) {
-	    for (k in 1:num_nodes) {
-	      if (cluster_memberships_24[[i]][j] == cluster_memberships_24[[i]][k]) {
-	        consensus_matrix_24[j, k] <- consensus_matrix_24[j, k] + 1
-	      }
-	    }
-	  }
-	}
-	rownames(consensus_matrix_24) <- colnames(consensus_matrix_24) <- names(cluster_memberships_24[[1]])
-
-	# get final clustering results
-	graph_24 <- graph.adjacency(consensus_matrix_24, mode = "undirected", weighted = T, diag = F)
-	community_obj_24 <- igraph::cluster_louvain(graph_24, resolution = 2.1) #2.2
-	unique(igraph::membership(community_obj_24)); table(igraph::membership(community_obj_24))
+  set.seed(13579)
+  ##consensus clustering using louvain algorithm
+  cluster_memberships_24_test <- list()
+  # Run Louvain clustering multiple times
+  num_runs <- 1000
+  num_nodes <- vcount(all_tme_nmf_24_prop_cor_test_network_rm2)
+  for (i in 1:num_runs) {
+    cluster_obj <- igraph::cluster_louvain(all_tme_nmf_24_prop_cor_test_network_rm2, resolution = 2.8) #2.2; 2.1
+    cluster_memberships_24_test[[i]] <- membership(cluster_obj)
+  }
+  # Create a consensus matrix
+  consensus_matrix_24_test <- matrix(0, nrow = num_nodes, ncol = num_nodes)
+  for (i in 1:num_runs) {
+    for (j in 1:num_nodes) {
+      for (k in 1:num_nodes) {
+        if (cluster_memberships_24_test[[i]][j] == cluster_memberships_24_test[[i]][k]) {
+          consensus_matrix_24_test[j, k] <- consensus_matrix_24_test[j, k] + 1
+        }
+      }
+    }
+  }
+  rownames(consensus_matrix_24_test) <- colnames(consensus_matrix_24_test) <- names(cluster_memberships_24_test[[1]])
+  
+  # get final clustering results
+  graph_24_test <- graph.adjacency(consensus_matrix_24_test, mode = "undirected", weighted = T, diag = F)
+  community_obj_24_test <- igraph::cluster_louvain(graph_24_test, resolution = 2.28) #2.2
+  table(igraph::membership(community_obj_24_test))
 }
 
-all_tme_nmf_24_prop_cor_test_network1 <- all_tme_nmf_24_prop_cor_test_network_rm2
-V(all_tme_nmf_24_prop_cor_test_network1)$clu <- as.character(membership(community_obj_24))
+all_tme_nmf_24_prop_cor_test_network2 <- all_tme_nmf_24_prop_cor_test_network_rm2
+V(all_tme_nmf_24_prop_cor_test_network2)$clu <- as.character(membership(community_obj_24_test))
 
-xyz_power <- 60 
-l_wt_24 <- apply(get.edgelist(all_tme_nmf_24_prop_cor_test_network1), 1, 
-              weight.community, 
-              membership(community_obj_24), xyz_power, 1) #1
+l_wt_24_test <- apply(get.edgelist(all_tme_nmf_24_prop_cor_test_network2), 1,
+                 weight.community,
+                 membership(community_obj_24_test), 200, 2) #55
 
-{
-    l_24 <- layout_with_fr(all_tme_nmf_24_prop_cor_test_network1, weights=l_wt_24)
-    ggraph(all_tme_nmf_24_prop_cor_test_network1, layout = l_24)+
-    geom_edge_link0(aes(edge_width = weight), edge_colour = "#999BA0FF")+ #Draw edges as straight lines between nodes
-    geom_node_point(aes(colour = clu), size = 5.5)+
-    scale_colour_manual(values = cellstate_ecotype_col)+
-    scale_edge_width(range = c(0.1, 1.5))+
-    theme_graph()+
-    theme(legend.position = "right")
-}
-ggraph(all_tme_nmf_24_prop_cor_test_network1, layout = l_24)+
-  geom_edge_link0(aes(edge_width = weight),edge_colour = "#999BA0FF")+ #Draw edges as straight lines between nodes; alpha = weight
-  geom_node_point(aes(fill = clu), size = 3, shape = 21)+
-  scale_fill_manual(values = cellstate_ecotype_col)+
-  scale_edge_width(range = c(0.1,1.5))+
+cell_cooccur_col <- c('')
+
+ggraph::ggraph(all_tme_nmf_24_prop_cor_test_network2, layout = l_24_test_opt)+
+  geom_edge_link0(aes(edge_width = weight), edge_colour = "#999BA0FF")+ #Draw edges as straight lines between nodes
+  geom_node_point(aes(colour = clu), size = 5)+
+  scale_colour_manual(values = cell_cooccur_col)+
+  scale_edge_width(range = c(0.01, 2))+
   theme_graph()+
   theme(legend.position = "right")+
-  geom_node_text(aes(label = name), repel = TRUE, point.padding = unit(0.2, "lines"), size = 3)
+  geom_node_text(aes(label = name), repel = TRUE, point.padding = unit(0.2, "lines"), size = 1.5)
 
+## try bundle
+jam_igraph(all_tme_nmf_24_prop_cor_test_network2,
+           layout=l_24_test, edge.color = adjustcolor('#999BA0FF', alpha.f = .5), edge.width=E(all_tme_nmf_24_prop_cor_test_network2)$weight, edge_factor = 2, #edge.width=seq(0.1,5),
+           edge_bundling="nodegroups",
+           nodegroups=community_obj_24_info_list_test, vertex.size = 3, vertex.label=NA, vertex.color=cell_cooccur_col[V(all_tme_nmf_24_prop_cor_test_network2)$clu])
+										
 
-# fig7b-tissue distribution --------------------------------------------------------------
+# fig7b-cell co-occurrence (within each tissue type)--------------------------------------------------------------
 jaccard_similarity <- function(x, y) {
   intersection <- sum(x & y)  # Count of common 1s
   union <- sum(x | y)         # Count of 1s in either x or y
   return(intersection / union)
 }
+										
 #construct a cluster list info
 community_obj_24_info <- as.character(membership(community_obj_24))
 names(community_obj_24_info) <- names(membership(community_obj_24))
@@ -179,10 +177,12 @@ names(cellstate_ecotype_col1) <- c(1:8)
 all_tme_nmf_prop_0924$tissue_upd_0924_upd <- all_tme_nmf_prop_0924$tissue_upd_0924
 all_tme_nmf_prop_0924$tissue_upd_0924 <- NULL
 
+
+										
 mat_use_scaled_24_binarize <- apply(all_tme_nmf_prop_0924[,2:76], 2, function(x) ifelse(x > quantile(x, prob = .55), 1, 0)) #0.5
 
-tissue_binarize <- mat_use_scaled_24_binarize[which(all_tme_nmf_prop_0924$tissue_upd_0924_upd == "Normal"),] #"DCIS_yes"  "synch_yes" "IDC_yes"   "Normal" 
-#t_i <- 1
+## change tissue_upd_0924_upd to "DCIS_yes" or "synch_yes" or "IDC_yes" or "Normal" 
+tissue_binarize <- mat_use_scaled_24_binarize[which(all_tme_nmf_prop_0924$tissue_upd_0924_upd == "Normal"),] 
 
 {
   n <- ncol(tissue_binarize)
