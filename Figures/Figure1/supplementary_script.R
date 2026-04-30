@@ -11,13 +11,35 @@ library(cowplot)
 pdf('./all_tumor_cnv_heatmap.pdf', width=12, height=18.5)
 
 sample_cell_df <- read.csv('./all_tumor_sample_cell.csv', header = T)
-DCIS_copykat_cnv_sel <- read.csv('./DCIS_copykat_cnv_sel_all.csv', header = T, row.names = 1)
+
+## 'sample_cell_df' should look like this: sample,cell,tissue_upd_2024_final (header)
+## BCMDCIS01T,TTCCTAAGTGGCAGAT-1_1_3,DCIS_yes
+
+for(sample_name in unique(sample_cell_df$sample)) {
+  cell_sel <- sample_cell_df %>% dplyr::filter(sample == sample_name) %>% pull(cell)
+  DCIS_copykat_cnv <- read.table(paste(sample_name, "_copykat_CNA_results.txt", sep = ""), header = T)
+  colnames(DCIS_copykat_cnv) <- sub("\\.", "-", colnames(DCIS_copykat_cnv))
+  DCIS_copykat_cnv_overlap <- intersect(colnames(DCIS_copykat_cnv), cell_sel)
+  DCIS_copykat_cnv_sub <- DCIS_copykat_cnv %>% dplyr::select(DCIS_copykat_cnv_overlap)
+  DCIS_copykat_cnv_sel_t <- t(DCIS_copykat_cnv_sub)
+  
+  sample_record_tmp <- sample_cell_df %>% dplyr::filter(sample == sample_name) %>% pull(sample)
+  sample_record <- c(sample_record, sample_record_tmp)
+  
+  if(sample_name == "BCMDCIS01T") {DCIS_copykat_cnv_sel_all <- DCIS_copykat_cnv_sel_t; next}
+  
+  DCIS_copykat_cnv_sel_all <- rbind(DCIS_copykat_cnv_sel_all, DCIS_copykat_cnv_sel_t)
+}
+
 sample_record <- read.csv('./sample_record.csv', header = T, row.names = 1)
 DCIS_copykat_cnv <- read.table("./BCMDCIS01T_copykat_CNA_results.txt", header = T)
 
 DCIS_copykat_cnv_sel_all <- cbind(sample_record, DCIS_copykat_cnv_sel)
 rownames(DCIS_copykat_cnv_sel_all) <- rownames(DCIS_copykat_cnv_sel)
 colnames(DCIS_copykat_cnv_sel_all)[1] <- 'sample'
+
+## DCIS_copykat_cnv_sel_all should look like this:
+## 
 
 ##clinical info
 dcis_clinical_0924 <- read.csv('./dcis_project_tissuetype_0916.csv', header = T)
