@@ -2,6 +2,13 @@ library(igraph)
 library(ggraph)
 library(multienrichjam)
 
+## define functions ##
+jaccard_similarity <- function(x, y) {
+  intersection <- sum(x & y)  # Count of common 1s
+  union <- sum(x | y)         # Count of 1s in either x or y
+  return(intersection / union)
+}
+
 # fig7a-cell state correlation-------------------------------------------------------------------
 
 all_cell_count_24 <- read.csv('./filtered/all_cell_merged_anno.csv')
@@ -144,21 +151,18 @@ jam_igraph(all_tme_nmf_24_prop_cor_test_network2,
 										
 
 # fig7b-cell co-occurrence (within each tissue type)--------------------------------------------------------------
-jaccard_similarity <- function(x, y) {
-  intersection <- sum(x & y)  # Count of common 1s
-  union <- sum(x | y)         # Count of 1s in either x or y
-  return(intersection / union)
-}
-										
-#construct a cluster list info
-community_obj_24_info <- as.character(membership(community_obj_24))
-names(community_obj_24_info) <- names(membership(community_obj_24))
-community_obj_24_info_list <- list()
-for (num in unique(community_obj_24_info)) {
-  community_obj_24_info_list[[num]] <- names(community_obj_24_info[community_obj_24_info == num])
-}
+tumor_obj_dat_type_trunc_sum_upd2 <- tumor_obj_dat_type_trunc_sum_upd1
+tumor_obj_dat_type_trunc_sum_upd2$type <- NULL
 
-#construct a cluster list info (test)
+## dcis_clinical_0924 should look like this:
+## sample ER PR tissue_upd_24_v1 tissue_upd_0924 tissue_upd_0924_v1
+## BCMHBCA83L_3h na na Normal Normal Normal									
+										
+tumor_obj_dat_type_trunc_sum_upd2_cli <- merge(tumor_obj_dat_type_trunc_sum_upd2, dcis_clinical_0924[, c(1,5)], by = 'sample')
+
+all_tme_nmf_prop_0924 <- merge(tumor_obj_dat_type_trunc_sum_upd2_cli, all_tme_cellstate_24_count2_cli_prop_sel1, by = "sample")
+																			
+#construct a cluster list info
 community_obj_24_info_test <- as.character(membership(community_obj_24_test))
 names(community_obj_24_info_test) <- names(membership(community_obj_24_test))
 community_obj_24_info_list_test <- list()
@@ -166,18 +170,11 @@ for (num in unique(community_obj_24_info_test)) {
   community_obj_24_info_list_test[[num]] <- names(community_obj_24_info_test[community_obj_24_info_test == num])
 }
 
-names(cell_cooccur_col_test) <- c(1, 10, 11,2:9)
 names(cell_cooccur_col) <- c(1, 10, 11, 2:9)
-
-#for colors
-cellstate_ecotype_col1 <- cellstate_ecotype_col
-names(cellstate_ecotype_col1) <- c(1:8)
-
+										
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 all_tme_nmf_prop_0924$tissue_upd_0924_upd <- all_tme_nmf_prop_0924$tissue_upd_0924
 all_tme_nmf_prop_0924$tissue_upd_0924 <- NULL
-
-
 										
 mat_use_scaled_24_binarize <- apply(all_tme_nmf_prop_0924[,2:76], 2, function(x) ifelse(x > quantile(x, prob = .55), 1, 0)) #0.5
 
@@ -203,7 +200,6 @@ tissue_binarize <- mat_use_scaled_24_binarize[which(all_tme_nmf_prop_0924$tissue
     tissue_jacard_fea_run_24[is.na(tissue_jacard_fea_run_24)] <- 0
     tissue_tme_nmf_24_prop_scale_cb_sel_jac_network <- graph_from_adjacency_matrix(tissue_jacard_fea_run_24, weighted=T, mode="undirected", diag=F)
     tissue_tme_nmf_24_prop_scale_cb_sel_jac_network <- delete_edges(tissue_tme_nmf_24_prop_scale_cb_sel_jac_network, E(tissue_tme_nmf_24_prop_scale_cb_sel_jac_network)[weight < 0.5]) #0.5
-    #V(tissue_tme_nmf_24_prop_scale_cb_sel_jac_network)$clu <- as.character(membership(community_obj_24))
   }
   
   V(tissue_tme_nmf_24_prop_scale_cb_sel_jac_network)$clu <- as.character(membership(community_obj_24_test))
@@ -211,7 +207,6 @@ tissue_binarize <- mat_use_scaled_24_binarize[which(all_tme_nmf_prop_0924$tissue
              layout=l_24_test_opt, edge.color = adjustcolor('grey', alpha.f = .8), edge.width=E(tissue_tme_nmf_24_prop_scale_cb_sel_jac_network)$weight, edge_factor = 1, #edge.width=seq(0.1,5),
              edge_bundling="nodegroups",
              nodegroups=community_obj_24_info_list_test, vertex.size = 4, vertex.label=NA, vertex.color=cell_cooccur_col[V(tissue_tme_nmf_24_prop_scale_cb_sel_jac_network)$clu])
-  #'#7B8C95FF'
 }
 
 legend("topright", legend = c("low", "high"), 
