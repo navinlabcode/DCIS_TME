@@ -1,6 +1,8 @@
 library(igraph)
 library(ggraph)
 library(multienrichjam)
+library(dplyr)
+library(tidyr)
 
 ## define functions ##
 jaccard_similarity <- function(x, y) {
@@ -13,8 +15,8 @@ jaccard_similarity <- function(x, y) {
 
 all_cell_count_24 <- read.csv('./filtered/all_cell_merged_anno.csv')
 
-## the input file (all_cell_count_24) should look like this: 
-## sample, celltype, cellstate, unique_id
+## the input file 'all_cell_count_24' should look like this: 
+## sample, celltype, cellstate, cell_id (header)
 ## BCMHBCA83L_3h,lumsec,Lumsec_PTN,AAACGAAAGTGTAGTA-1_1_1_1
 
 all_cell_count_24$unique_id <- paste(all_cell_count_24$sample, sub('-.*', '', all_cell_count_24$cell_id), sep = '_')
@@ -48,21 +50,25 @@ all_tme_cellstate_24_count2_refor1_prop <- all_cell_count_24_celltypestate %>%
 
 all_tme_cellstate_24_count2_refor1_prop_bac <- all_tme_cellstate_24_count2_refor1_prop
 all_tme_cellstate_24_count2_refor1_prop1 <- all_tme_cellstate_24_count2_refor1_prop_bac %>% pivot_wider(names_from = cellstate, values_from = prop)
-all_tme_cellstate_24_count2_cli_prop_sel1 <- merge(all_tme_cellstate_24_count2_refor1_prop1, tissue_type_upd[, c(1:3)], by = "sample")
 
+## dcis_clinical_0924 should look like this:
+## sample ER PR tissue_upd_24_v1 tissue_upd_0924 tissue_upd_0924_v1 (header)
+## BCMHBCA83L_3h na na Normal Normal Normal	
+
+all_tme_cellstate_24_count2_cli_prop_sel1 <- merge(all_tme_cellstate_24_count2_refor1_prop1, dcis_clinical_0924[, c(1,2,5)], by = "sample")
+# only consider ER+ samples
+all_tme_cellstate_24_count2_cli_prop_sel1 <- all_tme_cellstate_24_count2_cli_prop_sel1 %>% filter(!ER == 'neg') %>% filter(!tissue_upd_0924 %in% c('mucinous'))
 all_tme_cellstate_24_count2_cli_prop_sel1[is.na(all_tme_cellstate_24_count2_cli_prop_sel1)] <- 0
 
 # merge NMF and TME
-
-## tumor_obj_dat_type_trunc_sum_upd should look like this:
-## sample         type      CC_G2M   CC_S Cell_growth_reg
+## tumor_obj_dat_type_trunc_sum_upd should look like this: (NMF metaprogram proportion for each sample)
+## sample         type      CC_G2M   CC_S Cell_growth_reg (header)
 ## BCMDCIS01T_pc1 DCIS_yes  0.0545 0.0510         0.00900
 
 tumor_obj_dat_type_trunc_sum_upd1 <- tumor_obj_dat_type_trunc_sum_upd
 colnames(tumor_obj_dat_type_trunc_sum_upd1)[c(3:16)] <- paste('NMF', colnames(tumor_obj_dat_type_trunc_sum_upd1)[c(3:16)], sep = '_')
 all_tme_nmf_prop_24 <- merge(tumor_obj_dat_type_trunc_sum_upd1, all_tme_cellstate_24_count2_cli_prop_sel1, by = "sample")
 
-# write.csv(all_tme_nmf_prop_24[, c(-1,-78, -79)], 'cellstate_nmf.csv', quote = F)
 
 all_tme_nmf_prop_24_cor <- cor(all_tme_nmf_prop_24[, 3:77], method = "spearman")
 
@@ -132,10 +138,11 @@ l_wt_24_test <- apply(get.edgelist(all_tme_nmf_24_prop_cor_test_network2), 1,
                  weight.community,
                  membership(community_obj_24_test), 200, 2) #55
 
-cell_cooccur_col <- c('')
+cell_cooccur_col <- c('red', ..)
 
 ## exploratory plot
-ggraph::ggraph(all_tme_nmf_24_prop_cor_test_network2, layout = l_24_test_opt)+
+l_24_test <- layout_with_fr(all_tme_nmf_24_prop_cor_test_network2, weights=l_wt_24_test)
+ggraph::ggraph(all_tme_nmf_24_prop_cor_test_network2)+
   geom_edge_link0(aes(edge_width = weight), edge_colour = "#999BA0FF")+ #Draw edges as straight lines between nodes
   geom_node_point(aes(colour = clu), size = 5)+
   scale_colour_manual(values = cell_cooccur_col)+
@@ -143,6 +150,14 @@ ggraph::ggraph(all_tme_nmf_24_prop_cor_test_network2, layout = l_24_test_opt)+
   theme_graph()+
   theme(legend.position = "right")+
   geom_node_text(aes(label = name), repel = TRUE, point.padding = unit(0.2, "lines"), size = 1.5)
+										
+#construct a cluster list info
+community_obj_24_info_test <- as.character(membership(community_obj_24_test))
+names(community_obj_24_info_test) <- names(membership(community_obj_24_test))
+community_obj_24_info_list_test <- list()
+for (num in unique(community_obj_24_info_test)) {
+  community_obj_24_info_list_test[[num]] <- names(community_obj_24_info_test[community_obj_24_info_test == num])
+}
 
 ## try bundle (used in the paper)
 jam_igraph(all_tme_nmf_24_prop_cor_test_network2,
@@ -163,19 +178,12 @@ tumor_obj_dat_type_trunc_sum_upd2_cli <- merge(tumor_obj_dat_type_trunc_sum_upd2
 
 all_tme_nmf_prop_0924 <- merge(tumor_obj_dat_type_trunc_sum_upd2_cli, all_tme_cellstate_24_count2_cli_prop_sel1, by = "sample")
 																			
-#construct a cluster list info
-community_obj_24_info_test <- as.character(membership(community_obj_24_test))
-names(community_obj_24_info_test) <- names(membership(community_obj_24_test))
-community_obj_24_info_list_test <- list()
-for (num in unique(community_obj_24_info_test)) {
-  community_obj_24_info_list_test[[num]] <- names(community_obj_24_info_test[community_obj_24_info_test == num])
-}
-
 names(cell_cooccur_col) <- c(1, 10, 11, 2:9)
 										
 all_tme_nmf_prop_0924$tissue_upd_0924_upd <- all_tme_nmf_prop_0924$tissue_upd_0924
 all_tme_nmf_prop_0924$tissue_upd_0924 <- NULL
-										
+
+## Binarize each feature as present/absent using the 55th percentile as the threshold.										
 mat_use_scaled_24_binarize <- apply(all_tme_nmf_prop_0924[,2:76], 2, function(x) ifelse(x > quantile(x, prob = .55), 1, 0)) #0.5
 
 ## change tissue_upd_0924_upd to "DCIS_yes" or "synch_yes" or "IDC_yes" or "Normal" 
@@ -205,7 +213,7 @@ tissue_binarize <- mat_use_scaled_24_binarize[which(all_tme_nmf_prop_0924$tissue
   V(tissue_tme_nmf_24_prop_scale_cb_sel_jac_network)$clu <- as.character(membership(community_obj_24_test))
   ## try bundle (used in the paper)
   jam_igraph(tissue_tme_nmf_24_prop_scale_cb_sel_jac_network,
-             layout=l_24_test_opt, edge.color = adjustcolor('grey', alpha.f = .8), edge.width=E(tissue_tme_nmf_24_prop_scale_cb_sel_jac_network)$weight, edge_factor = 1, #edge.width=seq(0.1,5),
+             layout=l_24_test, edge.color = adjustcolor('grey', alpha.f = .8), edge.width=E(tissue_tme_nmf_24_prop_scale_cb_sel_jac_network)$weight, edge_factor = 1, #edge.width=seq(0.1,5),
              edge_bundling="nodegroups",
              nodegroups=community_obj_24_info_list_test, vertex.size = 4, vertex.label=NA, vertex.color=cell_cooccur_col[V(tissue_tme_nmf_24_prop_scale_cb_sel_jac_network)$clu])
 }
