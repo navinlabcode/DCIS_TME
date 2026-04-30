@@ -173,7 +173,6 @@ for (num in unique(community_obj_24_info_test)) {
 
 names(cell_cooccur_col) <- c(1, 10, 11, 2:9)
 										
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 all_tme_nmf_prop_0924$tissue_upd_0924_upd <- all_tme_nmf_prop_0924$tissue_upd_0924
 all_tme_nmf_prop_0924$tissue_upd_0924 <- NULL
 										
