@@ -42,9 +42,16 @@ fibroph_genes <- list(CXCL1 = fibro0_gene$ENTREZID, CFD = fibro1_gene$ENTREZID, 
 fibroph_GOclusterplot <- compareCluster(geneCluster = fibroph_genes, fun = "enrichGO", OrgDb = "org.Hs.eg.db", ont = "BP")
 fibroph_GOclusterplot1 <- simplify(fibroph_GOclusterplot, cutoff=0.5, by="p.adjust", select_fun=min)
 
-dotplot(fibroph_GOclusterplot1, showCategory = 12) + scale_y_discrete(labels=function(x) str_wrap(x, width=85)) + 
-  scale_colour_gradientn(colours = (paletteer::paletteer_c("grDevices::Blue-Red 2", 50)))
-
+##only show enriched pathways for CAFs
+fibroph_GOclusterplot1_caf_term <- fibroph_GOclusterplot1@compareClusterResult %>% filter(Cluster == 'FN1') %>% arrange(p.adjust) %>% top_n(n = 10)
+fibroph_GOclusterplot1_caf_term$GeneRatio1 <- sapply(strsplit(fibroph_GOclusterplot1_caf_term$GeneRatio, "/"), function(y) as.numeric(y[1]) / as.numeric(y[2]))
+ggplot(fibroph_GOclusterplot1_caf_term, aes(y = GeneRatio1, x = Description, fill = p.adjust)) +
+  geom_col() + coord_flip() + theme_bw() +
+  theme(axis.text.x = element_text(size = 10, color = 'black'), 
+        axis.text.y = element_text(size = 10, color = 'black'), 
+        text = element_text(size = 12), panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank())
+                                            
 
 ###--------Supplementary figure 2d--------###
 vas_all_filtered_marker_top5 <- vas_all_filtered_marker %>% filter(p_val_adj < 0.05) %>% filter(pct.2 < 0.5) %>% group_by(cluster) %>%
