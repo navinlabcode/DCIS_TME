@@ -201,7 +201,13 @@ ggplot(all_copykat_gain_loss_pos1) + geom_line(aes(chr_pos, gain, group = tissue
   facet_grid(.~ chr_num, scales = "free_x", space = "free_x") + theme_bw() + theme(strip.text = element_text(size=10), panel.spacing = unit(-.5, 'pt'), plot.margin = unit(c(0, 0, 0, 0), "cm")) +
   rremove('x.text') + rremove('x.ticks') + rremove('xlab') + rremove('grid') + scale_color_manual(values = c("#F9B90AFF", "#41B6E6FF", "#F24C3DFF"))+ ylim(-1, 1)
 
-
+##freq plot for each tissue type##
+tissue_copykat_gain_loss_pos <- all_copykat_gain_loss_pos %>% filter(tissue == 'IDC_yes') #IDC_yes; synch_yes; DCIS_yes
+ggplot(tissue_copykat_gain_loss_pos) + geom_line(aes(pos, gain, group = 1), color = "red") + geom_area(aes(pos, gain, group = 1), fill='red', alpha=1, position = "identity") + geom_line(aes(pos, loss, group = 1), color = "blue") + 
+  geom_area(aes(pos, loss, group = 1), fill= 'blue', alpha=1, position = "identity") + facet_grid(.~ chr, scales = "free_x", space = "free_x") + theme_bw() + theme(strip.text = element_text(size=10), panel.spacing = unit(-.5, 'pt'), plot.margin = unit(c(0, 0, 0, 0), "cm")) +
+  rremove('x.text') + rremove('x.ticks') + rremove('xlab') + rremove('grid') + scale_color_manual(values = c("blue", "red"), labels = c("False", "True")) + ylim(-1, 1)
+                                                                                                                                                
+                                                                                                                                                
 ###--------Supplementary figure 1d--------###
 hbca_dcis_ibc.integrated.all.meta <- data.frame(sample = hbca_dcis_ibc.integrated.b1.b2.clean.cellanno$orig.ident, proj_ori = hbca_dcis_ibc.integrated.b1.b2.clean.cellanno$project,
                                                 celltype = hbca_dcis_ibc.integrated.b1.b2.clean.cellanno$celltype_com, ploidy = hbca_dcis_ibc.integrated.b1.b2.clean.cellanno$tumor_normal)
