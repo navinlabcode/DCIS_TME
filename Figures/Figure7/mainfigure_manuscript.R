@@ -223,4 +223,24 @@ legend("topright", legend = c("low", "high"),
        col = "grey",     # Color of the lines in the legend
        title = "Co-presence")
 
+# fig7e- sc and st correlation--------------------------------------------------------------
+sc_cooccur_24 <- data.frame(name = V(all_tme_nmf_24_prop_cor_test_network1)$name, cluster = paste('eco', V(all_tme_nmf_24_prop_cor_test_network1)$clu, sep = "_"))
+xenium_niche_24 <- data.frame(name = V(dcis_xenium_prox_9cons_network1_rm)$name, cluster = paste('niche', V(dcis_xenium_prox_9cons_network1_rm)$clu, sep = "_"))
+
+xenium_niche_sccocurr_24 <- merge(sc_cooccur_24, xenium_niche_24, by = 'name')
+colnames(xenium_niche_sccocurr_24) <- c('Cellstate',  'SC', 'Spatial')
+xenium_niche_sccocurr_24_count <- xenium_niche_sccocurr_24 %>% count(SC, Spatial) 
+									
+alluvial::alluvial(xenium_niche_sccocurr_24_count %>% dplyr::select(-n),
+                   freq=xenium_niche_sccocurr_24_count$n, border = NA, alpha = 0.75,
+                   col=case_when(xenium_niche_sccocurr_24_count$SC == "eco_1" ~ "#EC5578FF",
+                                 xenium_niche_sccocurr_24_count$SC == "eco_2" ~ "#BEE948FF",
+                                 xenium_niche_sccocurr_24_count$SC == "eco_3" ~ "#3A82E4FF",
+                                 xenium_niche_sccocurr_24_count$SC == "eco_4" ~ "#FEE12BFF",
+                                 xenium_niche_sccocurr_24_count$SC == "eco_5" ~ "#9041BAFF",
+                                 xenium_niche_sccocurr_24_count$SC == "eco_6" ~ "#42BA90FF",
+                                 xenium_niche_sccocurr_24_count$SC == "eco_7" ~ "#00B7EBFF",
+                                 ),
+                   cex=0.75,
+                   axis_labels = c("SC", "Spatial"))									
 
